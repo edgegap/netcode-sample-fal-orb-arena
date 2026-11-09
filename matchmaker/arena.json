@@ -8,7 +8,7 @@
       "ticket_expiration_period": "30s",
       "ticket_removal_period": "1m",
       "group_inactivity_removal_period": "5m",
-      "application": { "name": "orb-arena", "version": "VERSION" },
+      "application": { "name": "orb-arena", "version": "20261109-1522" },
       "rules": {
         "initial": {
           "match_size": {
