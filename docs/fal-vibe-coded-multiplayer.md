@@ -157,7 +157,9 @@ only one server runs at a time. A demo that stays up needs a paid tier.
 on once: Settings > Pages > Source: **GitHub Actions**. Add the Pages address to the matchmaker's
 `allowed_cors_origins` (Stop > Configuration > edit > Start).
 
-A personal GitHub account on the free plan only runs Pages for public repos. Any static host works
+The first deployment of a new Pages site can sit in `deployment_queued` for several minutes;
+later ones take seconds. On the free GitHub plan (personal or organization), Pages only runs for
+public repos. Any static host works
 the same way, as long as its address is in the CORS list.
 
 ## Step 7: Prove it end to end
@@ -178,6 +180,10 @@ the same way, as long as its address is in the CORS list.
 
 2. Open the page in two browser windows and click **Find match** in both within 20 seconds. You
    land in the same match with two bots. Alone, you get a match against three bots after 20 seconds.
+   For this sample, two tabs on https://edgegap.github.io/netcode-sample-fal-orb-arena/ (from
+   Montreal) were matched in about 10 seconds onto a server in Toronto, saw the same match, and
+   the server stopped itself when the match ended. Add `?autoplay=1` to the URL to start Find
+   match on page load.
 3. In the dashboard's Deployments list, nothing should stay running after the match.
 
 ## Troubleshooting
