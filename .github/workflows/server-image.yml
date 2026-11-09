@@ -48,6 +48,10 @@ jobs:
           file: server/Dockerfile
           platforms: linux/amd64
           push: true
+          # A plain single-platform manifest: no provenance/SBOM attestations, which wrap the
+          # image in an index that the Edgegap deployer can't pull.
+          provenance: false
+          sbom: false
           tags: registry.edgegap.com/${{ vars.EDGEGAP_REGISTRY_PROJECT }}/${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
 
       - name: Summary
