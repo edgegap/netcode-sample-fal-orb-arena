@@ -1,0 +1,54 @@
+# Builds the Orb Arena server image and pushes it to the Edgegap Container Registry.
+# Tag = UTC time (YYYYMMDD-HHMM), also used as the Edgegap app version name.
+# From the edgegap-threejs skill (assets/ci/server-image.yml).
+#
+# Repository settings (set by the repo owner, never committed):
+#   secrets   EDGEGAP_REGISTRY_USERNAME, EDGEGAP_REGISTRY_TOKEN  (Edgegap dashboard > Container Registry)
+#   variables EDGEGAP_REGISTRY_PROJECT                           (the <project> in registry.edgegap.com/<project>/...)
+name: Server image
+
+on:
+  push:
+    branches: [main]
+    paths: [server/**, client/rules.js, package.json, package-lock.json, .github/workflows/server-image.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: orb-arena
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Local match test (two headless players, no Edgegap)
+        run: MATCH_SECONDS=90 node tests/local-match.mjs
+
+      - name: Image tag
+        id: tag
+        run: echo "tag=$(date -u +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: registry.edgegap.com
+          username: ${{ secrets.EDGEGAP_REGISTRY_USERNAME }}
+          password: ${{ secrets.EDGEGAP_REGISTRY_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: registry.edgegap.com/${{ vars.EDGEGAP_REGISTRY_PROJECT }}/${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+
+      - name: Summary
+        run: echo "Pushed registry.edgegap.com/${{ vars.EDGEGAP_REGISTRY_PROJECT }}/${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
