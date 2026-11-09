@@ -1,47 +1,56 @@
 # How to make a multiplayer vibe-coded game with fal AI
 
-Orb Arena is a small top-down arena shooter for 4 ships. **fal Agent** wrote the game; **Edgegap**
-runs it online, one authoritative server per match.
+A worked example you can follow step by step: **fal Agent** writes a single-player browser game,
+then **Edgegap** takes it online with a matchmaker and one authoritative server per match. Orb
+Arena, a top-down arena shooter for 4 ships, is the game built here.
 
-**Play:** https://edgegap.github.io/netcode-sample-fal-orb-arena/ (open it in two windows and click
-Find match in both). Online play only works while the demo matchmaker is running: it is on
-Edgegap's free tier and stops by itself about 3 hours after each start. When it is off, **Play vs
-bots** still works.
-
-This guide walks through how Orb Arena was made: **fal Agent** wrote a single-player browser game,
-then the game went online with **Edgegap**. Each match gets its own server near its players, the
-matchmaker groups players together, and the server shuts itself down when the match is over, so you
-only pay while people play.
+This repo is a recipe, not a live demo. Nothing in it runs on its own: you create your own
+Edgegap app version and matchmaker, play, and remove them when you're done. Each server stops
+itself when its match ends, so you only pay while people play.
 
 ```
 fal Agent ──writes──> rules.js + main.js + index.html          (solo game vs bots, in the browser)
                          │
                          │ rules.js is shared, unchanged
                          v
-page (GitHub Pages) ──Find match──> Edgegap matchmaker ──starts──> one Node.js server per match
-      <────────────── wss://<id>.pr.edgegap.net:<port> ───────────  runs rules.js at 60 Hz,
-                                                                     fills seats with bots,
-                                                                     stops itself after the match
+your page ──Find match──> Edgegap matchmaker ──starts──> one Node.js server per match
+     <──────────── wss://<id>.pr.edgegap.net:<port> ────  runs rules.js at 60 Hz,
+                                                           fills seats with bots,
+                                                           stops itself after the match
 ```
 
-Total time for this sample: about one afternoon, most of it waiting on builds. Cost of a match:
-one 0.25 vCPU server for the length of the match plus about 10 seconds.
+Verified on 2026-11-09: two headless players and two real browser tabs were matched together
+through the Edgegap matchmaker, played a full match, and the server stopped itself 9 seconds after
+the match ended. Cost of a match: one 0.25 vCPU server for the length of the match plus about 10
+seconds.
 
 ## What you need
 
 - A fal account (fal.ai). The free models of fal Agent were enough for this game.
-- An Edgegap account (app.edgegap.com). The free tier works for testing: one matchmaker that stops
-  after 3 hours, one server at a time.
-- A GitHub repo. GitHub Actions builds the server image and GitHub Pages hosts the page, so you
-  don't need Docker or Node installed on your own computer.
+- An Edgegap account (app.edgegap.com). The free tier is enough: one matchmaker that stops about
+  3 hours after each start, one server at a time.
+- A GitHub repo. GitHub Actions builds the server image, so you don't need Docker on your computer.
 - Optional but recommended: an AI coding agent with the Edgegap MCP server connected
   (`https://mcp.edgegap.dev`). Its `edgegap-vibe-coded` and `edgegap-threejs` skills hold the
   server templates, the matchmaker config and the tests used here.
 
+## Values you will fill in
+
+| Placeholder | Where it comes from | Where it goes |
+|---|---|---|
+| `<registry-project>` | Edgegap dashboard > Container Registry (looks like `edgegap-xxxxxxxx`) | GitHub variable `EDGEGAP_REGISTRY_PROJECT` |
+| registry username / token | Container Registry > Credentials | GitHub secrets `EDGEGAP_REGISTRY_USERNAME`, `EDGEGAP_REGISTRY_TOKEN` (never in the code) |
+| `<image-tag>` | The build summary of the Server image workflow (`YYYYMMDD-HHMM`) | App version tag and name, `matchmaker/arena.json` |
+| `<page-origin>` | Where you serve `client/` (`http://localhost:8080`, `https://<org>.github.io`...) | `allowed_cors_origins` in `matchmaker/arena.json` |
+| `<matchmaker-url>`, `<matchmaker-token>` | Matchmaker page > API URL and Auth Token | `client/config.js` |
+
+The matchmaker Auth Token is a client token: it can only ask for matches and is made to ship in
+game pages. Never put your Edgegap API token in the page, the repo or the image.
+
 ## Step 1: Ask fal Agent for a game that can go online
 
-fal Agent is built for images and video, but it will write code when you ask for it. The one thing
-that makes or breaks the multiplayer step is **where the rules live**. Ask for them in their own
+fal Agent is built for images and video, but it writes code when you ask for it. The one thing
+that makes or breaks the multiplayer step is **where the rules live**: ask for them in their own
 file, with no browser code in it, so a server can run the exact same file later.
 
 The prompt used for Orb Arena, verbatim:
@@ -62,8 +71,7 @@ The prompt used for Orb Arena, verbatim:
 > image and use it. Please output the full content of rules.js, main.js and index.html so I can
 > copy them.
 
-fal Agent answered in about a minute with the three files. Copy them into `client/` in your repo
-and open `index.html` through any local web server: you have a working single-player game.
+For your own game, change the gameplay paragraph and keep the architecture paragraph as it is.
 
 Why the prompt is shaped this way:
 
@@ -79,48 +87,54 @@ Tips:
 - Ask for "the full content of each file". Otherwise you may get a summary or a download you
   can't open.
 - If you change the game afterwards in fal Agent, keep repeating "all rules stay in rules.js".
-- The fal chat is your record of how the game was made: keep the link.
+
+**Done when:** the three files are in `client/`, and serving that folder locally gives a playable
+solo game against bots.
 
 ## Step 2: Add online play
 
-This is the part an AI coding agent with the Edgegap MCP does well. The prompt:
+The prompt for an AI coding agent with the Edgegap MCP:
 
 > Make this game online multiplayer on Edgegap. Use the Edgegap MCP and its edgegap-vibe-coded
 > skill. Keep the solo mode, add a Find match button, 2 to 4 players per match, bots fill empty
 > seats. Ask me before you create anything in my Edgegap account.
 
-What gets added (all of it is in this repo):
+What gets added (all of it is in this repo, ready to copy):
 
 | File | What it does |
 |---|---|
 | `server/main.js`, `room.js`, `edgegap.js`, `util.js` | Edgegap templates, unchanged: connections, phases (waiting, countdown, playing, over), bots, the self-stop when the match ends. |
-| `server/game.js` | About 70 lines that wrap `client/rules.js`: take inputs from players, run `step()`, send a snapshot 20 times a second. |
+| `server/game.js` | About 70 lines that wrap `client/rules.js`: take inputs from players, run `step()`, send a snapshot 20 times a second. The only server file you adapt to your game. |
 | `client/online.js`, `client/net.js` | Find match through the Edgegap JS SDK, then the WebSocket to the match server, with retries while the server boots. |
 | `client/main.js` | fal's renderer now draws either the solo world or the server's snapshots. Solo mode is unchanged. |
-| `client/config.js` | The matchmaker URL and its Auth Token. That token is made to ship in game pages: it can only ask for matches. Never put your Edgegap API token in the page. |
+| `client/config.js` | `<matchmaker-url>` and `<matchmaker-token>`, empty until step 5. |
+| `server/Dockerfile` | Node 22 image with `server/` and `client/rules.js`. |
 | `tests/local-match.mjs` | Two headless players play a full match against a local server. Runs in CI on every build. |
-| `tests/e2e.mjs` | The same, through the real matchmaker and a real Edgegap server, then checks the server stopped itself. |
+| `tests/e2e.mjs` | The same through the real matchmaker and a real Edgegap server, then checks the server stopped itself. |
 
 The server never trusts the browser: it only accepts button presses and an aim point, clamps them,
 and decides movement, hits and scores itself.
 
+**Done when:** `npm install && npm run test:local` prints `PASS`, and two tabs on the local page
+(**Local server :7777**) see the same match.
+
 ## Step 3: Build the server image with GitHub Actions
 
-`.github/workflows/server-image.yml` builds the server on every push to `main`, runs the local
-match test, and pushes the image to the Edgegap Container Registry with a time-based tag such as
-`20261109-1533`.
+`.github/workflows/server-image.yml` builds the server on every push to `main` (and on demand),
+runs the local match test, and pushes the image to the Edgegap Container Registry as
+`registry.edgegap.com/<registry-project>/orb-arena:<image-tag>`.
 
 One-time setup in the GitHub repo (Settings > Secrets and variables > Actions):
 
-1. Variable `EDGEGAP_REGISTRY_PROJECT`: the project shown in the Edgegap dashboard, Container
-   Registry page (looks like `edgegap-xxxxxxxx`).
-2. Secrets `EDGEGAP_REGISTRY_USERNAME` and `EDGEGAP_REGISTRY_TOKEN`: from the **Credentials** box on
-   that same page. Don't click Regenerate Token if other projects already push there.
+1. Variable `EDGEGAP_REGISTRY_PROJECT` = `<registry-project>`.
+2. Secrets `EDGEGAP_REGISTRY_USERNAME` and `EDGEGAP_REGISTRY_TOKEN` from the Credentials box. Don't
+   click Regenerate Token if other projects already push to that registry.
 
-> **Pitfall we hit:** with its default settings, `docker/build-push-action` adds provenance
-> attestations, which wraps the image in a multi-manifest index. Edgegap then fails with "Unable to
-> pull image from registry". Keep `provenance: false` and `sbom: false` in the workflow, as this repo
-> does.
+> **Pitfall:** with its default settings, `docker/build-push-action` adds provenance attestations,
+> which wrap the image in a multi-manifest index. Edgegap then fails with "Unable to pull image from
+> registry". Keep `provenance: false` and `sbom: false` in the workflow, as this repo does.
+
+**Done when:** the workflow's summary shows `Pushed registry.edgegap.com/...:<image-tag>`.
 
 ## Step 4: Create the app version in the Edgegap dashboard
 
@@ -128,9 +142,9 @@ Applications > Create application (`orb-arena`), then the version form:
 
 | Setting | Value | Why |
 |---|---|---|
-| Version name | the image tag, e.g. `20261109-1533` | Easy to match builds to versions. |
+| Version name | `<image-tag>` | Easy to match builds to versions. |
 | vCPU | 0.25 (512 MB RAM) | Plenty for a 4-player Node.js match. |
-| Registry | Edgegap (registry.edgegap.com), repository `<project>/orb-arena`, tag from the build | The dashboard fills the pull credentials. |
+| Registry | Edgegap (registry.edgegap.com), repository `<registry-project>/orb-arena`, tag `<image-tag>` | The dashboard fills the pull credentials. |
 | Max duration | 30 minutes | A backstop: the server normally stops itself much earlier. |
 | Restart policy | Never | A crashed match should end, not restart half-played. |
 | Port | 7777, protocol **WS**, name `gameport`, **TLS Upgrade on** | Pages on https can only open `wss://`. Edgegap adds TLS in front, so the server stays plain `ws`. |
@@ -141,90 +155,100 @@ Applications > Create application (`orb-arena`), then the version form:
 To ship a new server build later, change the tag on the version and save. Running matches are not
 affected.
 
+**Done when:** the version shows the port `7777 WS gameport` with TLS Upgrade `true` and the three
+env vars.
+
 ## Step 5: Create the matchmaker
 
-Matchmakers > Create Matchmaker, upload `matchmaker/arena.json`, **Create and Start**.
+1. In `matchmaker/arena.json`, set `application.version` to `<image-tag>` and list every
+   `<page-origin>` in `allowed_cors_origins` (scheme + host + port; the file starts with
+   `http://localhost:8080`).
+2. Matchmakers > Create Matchmaker, upload the file, **Create and Start**. The dashboard may warn
+   that the image "is not cached" or "not valid" when it can't check a private registry: continue,
+   the end-to-end test proves it.
+3. Copy the **API URL** and **Auth Token** into `client/config.js`.
 
-- Profile `arena`: 2 to 4 players per match. After 20 seconds in the queue, a lone player gets a
-  match on their own and bots fill the other seats, so nobody waits forever.
-- `application.version` must be your app version name.
-- `allowed_cors_origins` must list every address the page is served from, scheme + host + port
-  (for example `https://edgegap.github.io` and `http://localhost:8080`). A missing origin shows up
-  as Find match failing straight away in the browser.
-- The dashboard may warn that the image "is not cached" or "not valid" while it can't check a
-  private registry. Continue, then prove it with the end-to-end test.
+The profile `arena` matches 2 to 4 players. After 20 seconds in the queue, a lone player gets a
+match on their own and bots fill the other seats, so nobody waits forever.
 
-Copy the **API URL** and **Auth Token** from the matchmaker page into `client/config.js`.
+**Done when:** the matchmaker shows ONLINE and `client/config.js` has its URL and token.
 
-Free tier: the matchmaker stops about 3 hours after each start (Quick Restart brings it back), and
-only one server runs at a time. A demo that stays up needs a paid tier.
+## Step 6: Serve the page
 
-## Step 6: Host the page
+`client/` is a static page: serve it from any static host whose address is in
+`allowed_cors_origins`.
 
-`.github/workflows/pages.yml` publishes `client/` to GitHub Pages on every push to `main`. Turn it
-on once: Settings > Pages > Source: **GitHub Actions**. Add the Pages address to the matchmaker's
-`allowed_cors_origins` (Stop > Configuration > edit > Start).
+- Locally: `npm run client`, then http://localhost:8080.
+- GitHub Pages: `.github/workflows/pages.yml` publishes `client/` when you run it from the Actions
+  tab. Turn Pages on once (Settings > Pages > Source: **GitHub Actions**) and add
+  `https://<org>.github.io` to the CORS list. On the free GitHub plan, Pages only runs for public
+  repos, and a new site's first deployment can sit in `deployment_queued` for several minutes.
 
-The first deployment of a new Pages site can sit in `deployment_queued` for several minutes;
-later ones take seconds. On the free GitHub plan (personal or organization), Pages only runs for
-public repos. Any static host works
-the same way, as long as its address is in the CORS list.
+**Done when:** the page loads and **Play vs bots** works.
 
 ## Step 7: Prove it end to end
 
-1. Actions > **Matchmaker e2e** > Run workflow. Two headless players queue, land on the same
-   server, play to 10 points, and the test checks that the server stopped itself. The first
-   passing run for this sample:
+1. Actions > **Matchmaker e2e** > Run workflow (it reads `client/config.js`). Two headless players
+   queue, land on the same server, play to 10 points, and the test checks that the server stopped
+   itself. The passing run for this example:
 
    ```
    e2e-1: SEARCHING after 3s
    e2e-2: MATCH_FOUND after 11s
    e2e-1: HOST_ASSIGNED after 13s
-   server: wss://fe56c9e590b2.pr.edgegap.net:30279
+   server: wss://<id>.pr.edgegap.net:<port>
    result: e2e-1 wins; scores: e2e-1 10, e2e-2 9, Zed (bot) 8, Rusty (bot) 6
    deployment stopped itself 9s after the match
    PASS
    ```
 
-2. Open the page in two browser windows and click **Find match** in both within 20 seconds. You
-   land in the same match with two bots. Alone, you get a match against three bots after 20 seconds.
-   For this sample, two tabs on the Pages site (from
-   Montreal) were matched in about 10 seconds onto a server in Toronto, saw the same match, and
-   the server stopped itself when the match ended. Add `?autoplay=1` to the URL to start Find
-   match on page load.
-3. In the dashboard's Deployments list, nothing should stay running after the match.
+2. Open the page in two browser windows and click **Find match** in both within 20 seconds. Both
+   land in the same match with two bots, on a server near you. `?autoplay=1` on the URL starts
+   Find match on page load.
+3. In the dashboard's Deployments list, nothing stays running after the match.
+
+**Done when:** the e2e workflow prints `PASS` and the two windows played one match together.
+
+## Step 8: Clean up
+
+Nothing here should run non-stop:
+
+- Each match server stops itself when the match ends (or 15 s after everyone leaves, or 60 s if
+  nobody joins; 30 minutes at most).
+- **Stop or delete the matchmaker** when you're done testing. On the free tier it stops by itself
+  about 3 hours after each start; Start or Quick Restart brings it back for the next session.
+- If you published the page, players will only get "Could not find a match" while the matchmaker
+  is off; **Play vs bots** keeps working. Unpublish it (Settings > Pages) if you don't want it up.
+- The app version, registry images and GitHub secrets cost nothing while idle.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
 | Deployment log: "Unable to pull image from registry" | `provenance: false` / `sbom: false` in the build, check the registry secrets, then put the new tag on the version. |
-| Find match fails immediately in the browser | The page's address is missing from `allowed_cors_origins`, or `client/config.js` has the wrong URL or token. |
+| Find match fails immediately in the browser | The page's origin is missing from `allowed_cors_origins`, the matchmaker is stopped, or `client/config.js` has the wrong URL or token. |
 | "Server starting, connecting (n/10)" | Normal for a few seconds after a server is assigned. If it never connects, check the port is WS with TLS Upgrade on. |
 | Matched but the page shows nobody else | Both players must queue within 20 seconds of each other, or each gets their own match with bots. |
-| Matchmaker went offline | Free tier: about 3 hours per start. Use Quick Restart. |
-| Servers keep running | Check the env vars above and that restart policy is Never. The 30-minute max duration stops them anyway. |
+| Matchmaker went offline | Free tier: about 3 hours per start. Start it again from the dashboard. |
+| Servers keep running | Check the env vars in step 4 and that restart policy is Never. The 30-minute max duration stops them anyway. |
 
 ## Make your own
 
-1. Run the Step 1 prompt with your own game idea, keeping the architecture paragraph as is.
-2. Copy `server/`, `client/online.js`, `client/net.js`, `client/config.js`, `tests/` and the
-   workflows from this repo, then adapt `server/game.js` to your rules (most of it is snapshot
-   fields).
-3. Follow steps 3 to 7.
-
-Credits: game design, rules and renderer by fal Agent; Edgegap integration from the Edgegap MCP
-skills (`edgegap-vibe-coded`, `edgegap-threejs`).
+1. Run the step 1 prompt with your own game idea, keeping the architecture paragraph.
+2. Copy `server/`, `client/online.js`, `client/net.js`, `client/config.js`, `tests/`,
+   `matchmaker/` and `.github/workflows/` from this repo, then adapt `server/game.js` to your
+   rules (mostly the snapshot fields) and `playLikeABot()` in `tests/headless-player.mjs`.
+3. Follow steps 3 to 8 with your own placeholders.
 
 ## Repo layout
 
 - `client/rules.js`: all game rules (fal Agent). Imported by the page for solo play and by the server online.
-- `client/main.js`: fal Agent's renderer and solo loop, plus the online mode.
-- `client/online.js`, `client/net.js`, `client/config.js`: Edgegap JS SDK matchmaking, the WebSocket client, the matchmaker URL and client token.
+- `client/main.js`, `client/index.html`: fal Agent's renderer and solo loop, plus the online mode and menu.
+- `client/online.js`, `client/net.js`, `client/config.js`: Edgegap JS SDK matchmaking, the WebSocket client, the matchmaker settings.
 - `server/`: room, phases, bots, self-stop (Edgegap `edgegap-threejs` templates); `game.js` wraps the rules.
 - `matchmaker/arena.json`: matchmaker config to upload in the Edgegap dashboard.
 - `tests/`: local match test and matchmaker end-to-end test.
-- `.github/workflows/`: server image build, GitHub Pages, matchmaker e2e.
+- `.github/workflows/`: server image build, matchmaker e2e, optional GitHub Pages.
 
 ## Run locally
 
@@ -234,3 +258,6 @@ npm run server        # ws://localhost:7777
 npm run client        # http://localhost:8080 -> "Local server :7777" (open two tabs)
 npm run test:local    # two headless players play a full match
 ```
+
+Credits: game design, rules and renderer by fal Agent; Edgegap integration from the Edgegap MCP
+skills (`edgegap-vibe-coded`, `edgegap-threejs`).
