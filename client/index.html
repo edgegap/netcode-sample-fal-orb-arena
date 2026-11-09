@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orb Arena</title>
+  <!-- The Edgegap JS SDK (matchmaker client), pinned with an integrity hash. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@edgegap/sdk": "https://cdn.jsdelivr.net/npm/@edgegap/sdk@1.1.0/dist/browser/edgegap.js"
+      },
+      "integrity": {
+        "https://cdn.jsdelivr.net/npm/@edgegap/sdk@1.1.0/dist/browser/edgegap.js": "sha384-U8KQMl3e8xF4aAIJJMXV8IdkCKWiHSQhHISsedbG4z/L99dNOq5FoRlMgPDYgNUF"
+      }
+    }
+  </script>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #090e14; color: #e8f0f7; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 20px; }
+    main { width: min(94vw, 800px); text-align: center; }
+    h1 { margin: 0 0 6px; font-size: clamp(1.5rem, 4vw, 2.2rem); letter-spacing: 0.08em; }
+    .instructions { margin: 0 0 14px; color: #a8bacb; font-size: 0.95rem; line-height: 1.5; }
+    .arena-wrap { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; border: 1px solid #35485a;
+      border-radius: 8px; background: #101722; box-shadow: 0 16px 60px rgba(0, 0, 0, 0.45); }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+    .actions { min-height: 52px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+    button { border: 1px solid #56e0ff; border-radius: 6px; background: #123342; color: #e8f0f7; padding: 10px 20px;
+      font: inherit; font-weight: 700; cursor: pointer; }
+    button:hover { background: #19485a; }
+    button.primary { background: #1b6a80; }
+    button[hidden], .menu[hidden] { display: none; }
+    .menu { position: absolute; inset: 0; display: grid; place-content: center; gap: 14px; background: rgba(5, 10, 16, 0.82); }
+    .menu input { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid #35485a; background: #0d141d; color: inherit; width: 220px; }
+    .menu .buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .status { min-height: 1.4em; color: #ffd166; margin: 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ORB ARENA</h1>
+    <p class="instructions">
+      Move: WASD or arrows · Aim: mouse · Fire: click · First to 10 wins
+    </p>
+
+    <div class="arena-wrap">
+      <canvas id="game" width="800" height="800" aria-label="Orb Arena game"></canvas>
+      <div class="menu" id="menu">
+        <label>Name <input id="name" maxlength="16" autocomplete="off"></label>
+        <div class="buttons">
+          <button id="find" class="primary" type="button">Find match</button>
+          <button id="solo" type="button">Play vs bots</button>
+          <button id="local" type="button" hidden>Local server :7777</button>
+          <button id="cancel" type="button" hidden>Cancel</button>
+        </div>
+        <p id="status" class="status"></p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="restart" type="button" hidden>Restart</button>
+      <button id="leave" type="button" hidden>Back to menu</button>
+    </div>
+  </main>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
