@@ -1,0 +1,17 @@
+{
+  "name": "orb-arena",
+  "private": true,
+  "type": "module",
+  "description": "Orb Arena: a top-down arena game built by fal Agent, made online multiplayer on Edgegap",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "server": "node server/main.js",
+    "client": "npx -y http-server client -p 8080 -c-1",
+    "test:local": "node tests/local-match.mjs",
+    "e2e": "node tests/e2e.mjs arena 2"
+  },
+  "dependencies": {
+    "@edgegap/sdk": "^1.1.0",
+    "ws": "^8.22.1"
+  }
+}
