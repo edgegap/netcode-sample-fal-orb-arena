@@ -1,0 +1,31 @@
+# End-to-end test through the Edgegap matchmaker: two headless players queue, land on one
+# deployment, play a full match over wss, and the server must stop itself afterwards.
+# Uses only the matchmaker's client token (client/config.js), never the Edgegap API token.
+name: Matchmaker e2e
+
+on:
+  workflow_dispatch:
+    inputs:
+      players:
+        description: Headless players
+        default: "2"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Play a match through the matchmaker
+        run: |
+          export MM_URL=$(node -e 'import("./client/config.js").then(m=>console.log(m.default.matchmakerUrl))')
+          export MM_TOKEN=$(node -e 'import("./client/config.js").then(m=>console.log(m.default.matchmakerToken))')
+          node tests/e2e.mjs arena ${{ inputs.players }}
