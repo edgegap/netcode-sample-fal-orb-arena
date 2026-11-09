@@ -28,4 +28,5 @@ jobs:
         run: |
           export MM_URL=$(node -e 'import("./client/config.js").then(m=>console.log(m.default.matchmakerUrl))')
           export MM_TOKEN=$(node -e 'import("./client/config.js").then(m=>console.log(m.default.matchmakerToken))')
+          if [ -z "$MM_URL" ] || [ -z "$MM_TOKEN" ]; then echo "Set matchmakerUrl and matchmakerToken in client/config.js first (README step 5)"; exit 1; fi
           node tests/e2e.mjs arena ${{ inputs.players }}

@@ -1,12 +1,10 @@
 # Publishes the browser client (client/) to GitHub Pages. The page is static: only the game
 # server runs on Edgegap. From the edgegap-threejs skill (assets/ci/pages.yml).
+# Optional and manual: run it from the Actions tab when you want the page online.
 # Turn Pages on once: Settings > Pages > Source: GitHub Actions.
 name: Pages
 
 on:
-  push:
-    branches: [main]
-    paths: [client/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
