@@ -2,13 +2,13 @@
   "version": "3.3.2",
   "inspect": true,
   "max_deployment_retry_count": 3,
-  "allowed_cors_origins": ["http://localhost:8080", "https://edgegap.github.io"],
+  "allowed_cors_origins": ["http://localhost:8080"],
   "profiles": {
     "arena": {
       "ticket_expiration_period": "30s",
       "ticket_removal_period": "1m",
       "group_inactivity_removal_period": "5m",
-      "application": { "name": "orb-arena", "version": "20261109-1522" },
+      "application": { "name": "orb-arena", "version": "<image-tag>" },
       "rules": {
         "initial": {
           "match_size": {
