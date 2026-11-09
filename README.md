@@ -1,5 +1,9 @@
 # Orb Arena
 
+**Play:** https://edgegap.github.io/netcode-sample-fal-orb-arena/ (open it in two windows and click Find match in both)
+
+**Guide:** [How to make a multiplayer vibe-coded game with fal AI](docs/fal-vibe-coded-multiplayer.md)
+
 A small top-down arena shooter for 4 ships, built by **fal Agent** (gameplay, rules and renderer)
 and made online multiplayer on **Edgegap**: Find Match goes through the Edgegap matchmaker, which
 starts one authoritative Node.js server per match near the players. Empty seats are filled with bots,
@@ -31,3 +35,4 @@ npm run test:local    # two headless players play a full match
 2. Edgegap app `orb-arena`, version = that tag: port 7777, name `gameport`, protocol WS, TLS Upgrade on,
    256 vCPU units / 512 MB, restart policy Never, max duration 30 min.
 3. Matchmaker from `matchmaker/arena.json` (set the version), then put its API URL and Auth Token in `client/config.js`.
+4. Push to `main`: the Pages workflow publishes `client/`. Actions > Matchmaker e2e runs a full match through the matchmaker.
