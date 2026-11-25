@@ -31,7 +31,7 @@ seconds.
   3 hours after each start, one server at a time.
 - A GitHub repo. GitHub Actions builds the server image, so you don't need Docker on your computer.
 - Optional but recommended: an AI coding agent with the Edgegap MCP server connected
-  (`https://mcp.edgegap.dev`). Its `edgegap-vibe-coded` and `edgegap-threejs` skills hold the
+  (`https://mcp.edgegap.com/mcp`). Its `edgegap-vibe-coded` and `edgegap-threejs` skills hold the
   server templates, the matchmaker config and the tests used here.
 
 ## Values you will fill in
