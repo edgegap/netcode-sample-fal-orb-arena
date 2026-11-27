@@ -1,5 +1,5 @@
 // One match on one server: connections, phases, the fixed-rate simulation and state broadcast.
-// From the edgegap-threejs skill (assets/server/room.js), unchanged.
+// Every game plugs into this with the same small interface (see games/*/server.js).
 //
 // Phases: waiting -> countdown -> playing -> over.
 //   waiting   until every matched player is in (MM_TICKET_IDS), or WAIT_SECONDS after the first join.
@@ -23,6 +23,10 @@ const RESULTS_SECONDS = num(env.RESULTS_SECONDS, 12);
 const FIRST_JOIN_TIMEOUT = num(env.FIRST_JOIN_TIMEOUT_S, 120);
 const EMPTY_TIMEOUT = num(env.EMPTY_TIMEOUT_S, 30);
 const REQUIRE_TICKET = env.REQUIRE_TICKET === "1";
+// Clients send input while playing and a heartbeat every 5 s (also from background tabs). One that
+// sent nothing for this long is gone even though its socket is open (a suspended phone browser):
+// disconnect it, so an abandoned match still ends with EMPTY_TIMEOUT_S. 0 turns it off.
+const IDLE_TIMEOUT = num(env.IDLE_TIMEOUT_S, 0);
 
 const BOT_NAMES = ["Bolt", "Pixel", "Nova", "Rusty", "Zed", "Mochi", "Turbo", "Echo"];
 
@@ -46,12 +50,28 @@ export class Room {
     setInterval(() => this.tick(), 1000 / this.cfg.tickHz);
     setInterval(() => this.broadcastState(), 1000 / this.cfg.sendHz);
     setInterval(() => this.watchdog(), 1000);
+    // WebSocket ping every 10 s: a connection that misses a pong (network gone, tab killed) is
+    // dropped within about 20 s. Browsers answer pings themselves, background tabs included.
+    setInterval(() => {
+      for (const p of this.humans()) {
+        if (!p.ws) continue;
+        if (p.ws.pongMissed) {
+          log(`no pong from #${p.id} "${p.name}", dropping`);
+          p.ws.terminate();
+        } else {
+          p.ws.pongMissed = true;
+          p.ws.ping();
+        }
+      }
+    }, 10000);
   }
 
   // ---- connections -------------------------------------------------------------------------
 
   accept(ws) {
     let player = null;
+    ws.on("pong", () => (ws.pongMissed = false));
+    ws.on("error", (err) => log(`socket error: ${err.message}`));
     ws.on("message", (data) => {
       let msg;
       try {
@@ -64,6 +84,7 @@ export class Room {
         player = this.join(ws, msg);
         return;
       }
+      player.seenAt = Date.now();
       if (msg.t === "input" && this.phase !== "over") this.game.input(player, msg);
     });
     ws.on("close", () => player && this.leave(player));
@@ -88,7 +109,7 @@ export class Room {
 
     const name = String(hello.name ?? "").trim().slice(0, 16) || `Player ${this.nextId}`;
     const team = match && hello.ticket ? match.teamOf(hello.ticket) : null;
-    const player = { id: this.nextId++, name, ws, bot: false, ticket: hello.ticket ?? null, team, score: 0 };
+    const player = { id: this.nextId++, name, ws, bot: false, ticket: hello.ticket ?? null, team, score: 0, seenAt: Date.now() };
     this.players.set(player.id, player);
     this.humansEver++;
     this.emptySince = 0;
@@ -128,6 +149,7 @@ export class Room {
 
   setPhase(phase, seconds = 0) {
     this.phase = phase;
+    this.phaseStartedAt = Date.now();
     this.phaseEnds = seconds ? Date.now() + seconds * 1000 : 0;
     log(`phase ${phase}${seconds ? ` (${seconds}s)` : ""}`);
   }
@@ -186,8 +208,18 @@ export class Room {
   }
 
   watchdog() {
-    if (!onEdgegap) return;
     const now = Date.now();
+    if (IDLE_TIMEOUT && this.phase === "playing") {
+      for (const p of this.humans()) {
+        // Count from the start of play: nobody sends input during the countdown.
+        const since = Math.max(p.seenAt, this.phaseStartedAt ?? 0);
+        if (now - since > IDLE_TIMEOUT * 1000) {
+          log(`idle #${p.id} "${p.name}": nothing for ${IDLE_TIMEOUT}s, disconnecting`);
+          p.ws?.close(4000, "idle");
+        }
+      }
+    }
+    if (!onEdgegap) return;
     if (!this.humansEver && now - this.bootAt > FIRST_JOIN_TIMEOUT * 1000) selfStop(`nobody joined within ${FIRST_JOIN_TIMEOUT}s`);
     if (this.emptySince && now - this.emptySince > EMPTY_TIMEOUT * 1000) selfStop(`empty for ${EMPTY_TIMEOUT}s`);
   }
